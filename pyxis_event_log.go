@@ -1,15 +1,13 @@
 package main
 
 import (
-	"encoding/gob"
 	"encoding/json"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
 
-	"github.com/PharmacyDoc2018/pyxis_event_tracker/database"
-	"github.com/gocarina/gocsv"
+	"github.com/PharmacyDoc2018/control_event_parser/database"
 	"github.com/google/uuid"
 )
 
@@ -212,127 +210,26 @@ func (p *PyxisEventLog) checkForNewControlEvents() *logResponder {
 
 }
 
-func (p *PyxisEventLog) Save(dataPath string) *logError {
-	//-- If old json file exists, remove it
-	_, err := os.Stat(filepath.Join(dataPath, pyxisEventLogsFolder, p.PyxisName+".csv"))
-	if err == nil {
-		os.Remove(filepath.Join(dataPath, pyxisEventLogsFolder, p.PyxisName+".csv"))
-	}
-
-	//-- Marshall and write pyxis event log data
-	file, err := os.OpenFile(filepath.Join(dataPath, pyxisEventLogsFolder, p.PyxisName), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
-	if err != nil {
-		return &logError{
-			logMessage: fmt.Sprintf("Error opening %s event log: %s", p.PyxisName, err.Error()),
-			errMessage: fmt.Sprintf("error opening %s event log: %s", p.PyxisName, err.Error()),
-		}
-	}
-	defer file.Close()
-
-	encoder := gob.NewEncoder(file)
-	err = encoder.Encode(p)
-	if err != nil {
-		return &logError{
-			logMessage: fmt.Sprintf("Error saving %s pyxis event log: %s", p.PyxisName, err.Error()),
-			errMessage: fmt.Sprintf("error saving %s pyxis event log: %s", p.PyxisName, err.Error()),
+func (p *PyxisList) Add(pyxis string) error {
+	for _, device := range p.List {
+		if device == pyxis {
+			return fmt.Errorf("error. pyxis with that name already exists")
 		}
 	}
 
+	p.List = append(p.List, pyxis)
 	return nil
-
 }
 
-func (p *PyxisEventLog) Load(dataPath string) *logError {
-	//-- Read data from pyxis event log file
-	_, err := os.Stat(filepath.Join(dataPath, pyxisEventLogsFolder, p.PyxisName))
-	if err != nil { //-- data from json file
-		if os.IsNotExist(err) {
-			//-- Check for old csv file type
-			_, err := os.Stat(filepath.Join(dataPath, pyxisEventLogsFolder, p.PyxisName+".csv"))
-			if err != nil {
-				if os.IsNotExist(err) {
-					//-- Data doesn't exist at all
-					return &logError{
-						logMessage: fmt.Sprintf("Error. File for %s pyxis event log not found.", p.PyxisName),
-						errMessage: fmt.Sprintf("error. file for %s pyxis event log not found.", p.PyxisName),
-					}
-				} else {
-					//-- csv data exists, but file data not accessable
-					return &logError{
-						logMessage: fmt.Sprintf("Error. Cannot access file for %s pyxis event log: %s.", p.PyxisName, err.Error()),
-						errMessage: fmt.Sprintf("error. cannot access file for %s pyxis event log: %s.", p.PyxisName, err.Error()),
-					}
-				}
-			}
-
-			//-- Load data from old csv file --//
-			//-- open csv file
-			file, err := os.Open(filepath.Join(dataPath, pyxisEventLogsFolder, p.PyxisName+".csv"))
-			if err != nil {
-				return &logError{
-					logMessage: fmt.Sprintf("Error. Unable to load %s Pyxis event log: %s", p.PyxisName, err.Error()),
-					errMessage: fmt.Sprintf("error. Unable to load %s pyxis event log: %s", p.PyxisName, err.Error()),
-				}
-			}
-			defer file.Close()
-
-			//-- unmarshal csv into pyxis log
-			gocsv.UnmarshalFile(file, &p.Log)
-
-			//-- read settings json file
-			data, err := os.ReadFile(filepath.Join(dataPath, pyxisEventLogSettingsFolder, p.PyxisName+".json"))
-			if err != nil {
-				return &logError{
-					logMessage: fmt.Sprintf("Error. Unable to read %s Pyxis event log settings: %s", p.PyxisName, err.Error()),
-					errMessage: fmt.Sprintf("error. Unable to read %s pyxis event log settings: %s", p.PyxisName, err.Error()),
-				}
-			}
-
-			//-- unmarshal json data into struct
-			settings := struct {
-				StartDateTime     time.Time
-				LastEventDateTime time.Time
-			}{}
-			err = json.Unmarshal(data, &settings)
-			if err != nil {
-				return &logError{
-					logMessage: fmt.Sprintf("Error unmarshalling settings data for %s: %s", p.PyxisName, err.Error()),
-					errMessage: fmt.Sprintf("error unmarshalling settings data for %s: %s", p.PyxisName, err.Error()),
-				}
-			}
-			p.StartDateTime = settings.StartDateTime
-			p.LastEventDateTime = settings.LastEventDateTime
-
-		}
-
-		//-- Load data from binary file --//
-	} else {
-		f, err := os.Open(filepath.Join(dataPath, pyxisEventLogsFolder, p.PyxisName))
-		if err != nil {
-			return &logError{
-				logMessage: fmt.Sprintf("Error. Unable to open pyxis event log for %s.", p.PyxisName),
-				errMessage: fmt.Sprintf("error. Unable to open pyxis event log for %s.", p.PyxisName),
-			}
-		}
-		defer f.Close()
-
-		decoder := gob.NewDecoder(f)
-		err = decoder.Decode(&p)
-		if err != nil {
-			return &logError{
-				logMessage: fmt.Sprintf("Error. Unable to decode binary pyxis event log for %s.", p.PyxisName),
-				errMessage: fmt.Sprintf("error. unable to decode binary pyxis event log for %s.", p.PyxisName),
-			}
+func (p *PyxisList) Remove(pyxis string) error {
+	for i, device := range p.List {
+		if device == pyxis {
+			p.List = append(p.List[:i], p.List[i+1:]...)
+			return nil
 		}
 	}
 
-	//-- load control event log
-	logErr := p.controlEventLog.Load(dataPath, p)
-	if logErr != nil {
-		return logErr
-	}
-
-	return nil
+	return fmt.Errorf("error. %s pyxis not found", pyxis)
 }
 
 func initPyxisList() *PyxisList {
@@ -341,70 +238,71 @@ func initPyxisList() *PyxisList {
 	return &p
 }
 
-func (p *Process) saveDepartmentCoverage() error {
-	p.logger.LogInfo("Saving DepartmentCoverage")
+func (p *PyxisList) Save(dataPath string) (error, *logResponder) {
+	lr := logResponder{}
+	lr.AddInfo("Saving DepartmentCoverage")
 
-	file, err := os.OpenFile(filepath.Join(p.pathToData, departmentCoverageFileName), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	file, err := os.OpenFile(filepath.Join(dataPath, PyxisListFileName), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
-		p.logger.LogError(fmt.Sprintf("Error. Unable to open %s: %s", ERxItemIdLinksFileName, err.Error()))
-		return err
+		lr.AddError(fmt.Sprintf("Error. Unable to open %s: %s", ERxItemIdLinksFileName, err.Error()))
+		return err, &lr
 	}
 	defer file.Close()
 
-	data, err := json.Marshal(p.departmentCoverage)
+	data, err := json.Marshal(p)
 	if err != nil {
-		p.logger.LogError(fmt.Sprintf("Error marshalling DepartmentCoverage: %s", err.Error()))
-		return err
+		lr.AddError(fmt.Sprintf("Error marshalling Pyxis List: %s", err.Error()))
+		return err, &lr
 	}
 
 	_, err = file.Write(data)
 	if err != nil {
-		p.logger.LogError(fmt.Sprintf("Error writting marshalled DepartmentCoverage to file %s: %s", departmentCoverageFileName, err.Error()))
-		return err
+		lr.AddError(fmt.Sprintf("Error writting marshalled Pyxis List to file %s: %s", departmentCoverageFileName, err.Error()))
+		return err, &lr
 	}
 
-	return nil
+	return nil, &lr
 
 }
 
-func (p *PyxisList) Load() (error, *logResponder) {
-	p.logger.LogInfo("Loading DepartmentCoverage")
+func (p *PyxisList) Load(process *Process) (error, *logResponder) {
+	lr := logResponder{}
+	lr.AddInfo("Loading DepartmentCoverage")
 
 	//-- Check if save file exists. Create file if not found.
-	if _, err := os.Stat(filepath.Join(p.pathToData, departmentCoverageFileName)); err != nil {
+	if _, err := os.Stat(filepath.Join(process.pathToData, PyxisListFileName)); err != nil {
 		if os.IsNotExist(err) {
-			p.logger.LogInfo(fmt.Sprintf("%s not found. Attempting to create file", departmentCoverageFileName))
-			file, err := os.OpenFile(filepath.Join(p.pathToData, departmentCoverageFileName), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+			lr.AddInfo(fmt.Sprintf("%s not found. Attempting to create file", departmentCoverageFileName))
+			file, err := os.OpenFile(filepath.Join(process.pathToData, PyxisListFileName), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 			if err != nil {
-				p.logger.LogError(fmt.Sprintf("Error. Unable to create DepartmentCoverage save file: %s", err.Error()))
-				return fmt.Errorf("error. unable to create DepartmentCoverage save file: %s", err.Error())
+				lr.AddError(fmt.Sprintf("Error. Unable to create DepartmentCoverage save file: %s", err.Error()))
+				return fmt.Errorf("error. unable to create DepartmentCoverage save file: %s", err.Error()), &lr
 			}
 			_, err = file.WriteString("{}")
 			if err != nil {
-				p.logger.LogError(fmt.Sprintf("Error. Unable to write DepartmentCoverage save file: %s", err.Error()))
-				return fmt.Errorf("error. unable to write DepartmentCoverage save file: %s", err.Error())
+				lr.AddError(fmt.Sprintf("Error. Unable to write DepartmentCoverage save file: %s", err.Error()))
+				return fmt.Errorf("error. unable to write DepartmentCoverage save file: %s", err.Error()), &lr
 			}
 			file.Close()
 		}
 	}
 
 	//-- Load json data from save file
-	data, err := os.ReadFile(filepath.Join(p.pathToData, departmentCoverageFileName))
+	data, err := os.ReadFile(filepath.Join(process.pathToData, PyxisListFileName))
 	if err != nil {
-		p.logger.LogError(fmt.Sprintf("Load failed: %s", err.Error()))
-		return err
+		lr.AddError(fmt.Sprintf("Load failed: %s", err.Error()))
+		return err, &lr
 	}
 
 	//-- Unmarshal json into process memory
-	err = json.Unmarshal(data, p.departmentCoverage)
+	err = json.Unmarshal(data, process.FacilityPyxisList)
 	if err != nil {
-		p.logger.LogError(fmt.Sprintf("Load failed: %s", err.Error()))
-		return err
+		lr.AddError(fmt.Sprintf("Load failed: %s", err.Error()))
+		return err, &lr
 
 	}
 
-	p.logger.LogInfo("DepartmentCoverage loaded successfully")
-	p.state.DepartmentCoverageSuccessful()
-	return nil
+	lr.AddInfo("DepartmentCoverage loaded successfully")
+	return nil, &lr
 
 }

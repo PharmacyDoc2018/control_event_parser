@@ -42,6 +42,53 @@ func parseDate(dateString string) (time.Time, error) {
 	return time.Time{}, fmt.Errorf("error. %s not a valid date format", dateString)
 }
 
+func parseMonth(monthString string) (int, error) {
+	monthInt := 0
+
+	switch monthString {
+	case "January", "Jan", "january", "jan", "1":
+		monthInt = 1
+
+	case "February", "Feb", "february", "feb", "2":
+		monthInt = 2
+
+	case "March", "Mar", "march", "mar", "3":
+		monthInt = 3
+
+	case "April", "Apr", "april", "apr", "4":
+		monthInt = 4
+
+	case "May", "may", "5":
+		monthInt = 5
+
+	case "June", "june", "Jun", "jun", "6":
+		monthInt = 6
+
+	case "July", "july", "Jul", "jul", "7":
+		monthInt = 7
+
+	case "August", "august", "Aug", "aug":
+		monthInt = 8
+
+	case "September", "september", "Sept", "sept":
+		monthInt = 9
+
+	case "October", "october", "Oct", "oct":
+		monthInt = 10
+
+	case "November", "november", "Nov", "nov":
+		monthInt = 11
+
+	case "December", "december", "Dec", "dec":
+		monthInt = 12
+
+	default:
+		return monthInt, fmt.Errorf("error. unable to parse %s as a month", monthString)
+	}
+
+	return monthInt, nil
+}
+
 func timeToday() time.Time {
 	now := time.Now()
 	today := time.Date(

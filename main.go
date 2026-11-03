@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	"github.com/PharmacyDoc2018/pyxis_event_tracker/cli"
+	"github.com/PharmacyDoc2018/control_event_parser/cli"
 	_ "github.com/microsoft/go-mssqldb"
 )
 

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"strconv"
 )
 
@@ -15,16 +14,13 @@ const (
 )
 
 type processState struct {
-	pyxisLogsLoaded      []string
-	mode                 processMode
-	erxs                 bool
-	itemIds              bool
-	eRxItemIdLinks       bool
-	departmentCoverage   bool
-	dbConnection         bool
-	localDbConnection    bool
-	pyxisEventsLoaded    bool
-	correctionEventLinks bool
+	mode               processMode
+	erxs               bool
+	itemIds            bool
+	eRxItemIdLinks     bool
+	departmentCoverage bool
+	dbConnection       bool
+	pyxisList          bool
 }
 
 func (p *processState) UpdateState() {
@@ -47,11 +43,6 @@ func (p *processState) UpdateState() {
 		return
 	}
 
-	if !p.pyxisEventsLoaded {
-		p.mode = SafetyMode
-		return
-	}
-
 	if !p.eRxItemIdLinks {
 		p.mode = SafetyMode
 		return
@@ -61,11 +52,7 @@ func (p *processState) UpdateState() {
 		p.mode = SafetyMode
 	}
 
-	if !p.correctionEventLinks {
-		p.mode = SafetyMode
-	}
-
-	if !p.localDbConnection {
+	if !p.pyxisList {
 		p.mode = SafetyMode
 	}
 
@@ -85,13 +72,12 @@ func (p *processState) GetState() string {
 	res := ""
 
 	res = res + "Mode: " + strconv.Itoa(int(p.mode)) + "\n\n"
-	res = res + "Pyxis Events: " + boolStatus(p.pyxisEventsLoaded) + "\n"
 	res = res + "Database Connection: " + boolStatus(p.dbConnection) + "\n"
 	res = res + "ERXs: " + boolStatus(p.erxs) + "\n"
 	res = res + "ItemIDs: " + boolStatus(p.itemIds) + "\n"
 	res = res + "ERxItemIdLinks: " + boolStatus(p.eRxItemIdLinks) + "\n"
 	res = res + "Department Coverage: " + boolStatus(p.departmentCoverage) + "\n"
-	res = res + "Correction Event Links: " + boolStatus(p.correctionEventLinks) + "\n"
+	res = res + "Pyxis List: " + boolStatus((p.pyxisList)) + "\n"
 
 	return res
 }
@@ -132,12 +118,12 @@ func (p *processState) DepartmentCoverageSuccessful() {
 	p.UpdateState()
 }
 
-func (p *processState) CorrectionEventLinksOkay() bool {
-	return p.correctionEventLinks
+func (p *processState) PyxisListOkay() bool {
+	return p.pyxisList
 }
 
-func (p *processState) CorrectionEventLinksSuccessful() {
-	p.correctionEventLinks = true
+func (p *processState) PyxisListSuccessful() {
+	p.pyxisList = true
 	p.UpdateState()
 }
 
@@ -153,67 +139,6 @@ func (p *processState) DbConnectionSuccessful() {
 func (p *processState) DbConnectionFail() {
 	p.dbConnection = false
 	p.UpdateState()
-}
-
-func (p *processState) LocalDbConnectionOkay() bool {
-	return p.localDbConnection
-}
-
-func (p *processState) LocalDbConnectionSuccessful() {
-	p.localDbConnection = true
-	p.UpdateState()
-}
-
-func (p *processState) LocalDbConnectionFail() {
-	p.localDbConnection = false
-	p.UpdateState()
-}
-
-func (p *processState) PyxisEventLogsLoadedOkay() bool {
-	return p.pyxisEventsLoaded
-}
-
-func (p *processState) PyxisEventLogsLoadSuccessful() {
-	p.pyxisEventsLoaded = true
-	p.UpdateState()
-}
-
-func (p *processState) PyxisEventLogLoaded(pyxis string) *logError {
-	for _, log := range p.pyxisLogsLoaded {
-		if log == pyxis {
-			return &logError{
-				errMessage: fmt.Sprintf("error. %s already in loaded state", pyxis),
-				logMessage: fmt.Sprintf("Error. %s already in loaded state", pyxis),
-			}
-		}
-	}
-
-	p.pyxisLogsLoaded = append(p.pyxisLogsLoaded, pyxis)
-	return nil
-}
-
-func (p *processState) PyxisEventLogUnloaded(pyxis string) *logError {
-	for i, log := range p.pyxisLogsLoaded {
-		if log == pyxis {
-			p.pyxisLogsLoaded = append(p.pyxisLogsLoaded[:i], p.pyxisLogsLoaded[i+1:]...)
-			return nil
-		}
-	}
-
-	return &logError{
-		errMessage: fmt.Sprintf("error. %s not in loaded state", pyxis),
-		logMessage: fmt.Sprintf("Error. %s not in loaded state", pyxis),
-	}
-}
-
-func (p *processState) IsLoaded(pyxis string) bool {
-	for _, log := range p.pyxisLogsLoaded {
-		if log == pyxis {
-			return true
-		}
-	}
-
-	return false
 }
 
 func initProcessState() *processState {

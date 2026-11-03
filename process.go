@@ -4,13 +4,12 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
-	"path"
 	"path/filepath"
 	"time"
 
-	"github.com/PharmacyDoc2018/pyxis_event_tracker/cache"
-	"github.com/PharmacyDoc2018/pyxis_event_tracker/cli"
-	"github.com/PharmacyDoc2018/pyxis_event_tracker/database"
+	"github.com/PharmacyDoc2018/control_event_parser/cache"
+	"github.com/PharmacyDoc2018/control_event_parser/cli"
+	"github.com/PharmacyDoc2018/control_event_parser/database"
 	"github.com/joho/godotenv"
 )
 
@@ -42,28 +41,6 @@ type Process struct {
 	cache                *cache.Cache
 	cacheStop            chan struct{}
 	dbConnection         bool
-}
-
-func (p *Process) addNewFacilityPyxis(pyxis string) error {
-	for _, device := range p.FacilityPyxisList {
-		if device == pyxis {
-			return fmt.Errorf("error. pyxis with that name already exists")
-		}
-	}
-
-	p.FacilityPyxisList = append(p.FacilityPyxisList, pyxis)
-	return nil
-}
-
-func (p *Process) removeFacilityPyxis(pyxis string) error {
-	for i, device := range p.FacilityPyxisList {
-		if device == pyxis {
-			p.FacilityPyxisList = append(p.FacilityPyxisList[:i], p.FacilityPyxisList[i+1:]...)
-			return nil
-		}
-	}
-
-	return fmt.Errorf("error. %s pyxis not found", pyxis)
 }
 
 func initProcess() *Process {
@@ -122,12 +99,12 @@ func initProcess() *Process {
 	}
 
 	p.FacilityPyxisList = initPyxisList()
-	err, lr := p.FacilityPyxisList.Load(path.Join(p.pathToData, PyxisListFileName))
+	err, lr := p.FacilityPyxisList.Load(&p)
+	p.logger.Log(lr)
 	if err != nil {
-		p.logger.LogError("Error. Unable to load Pyxis List: " + err.Error())
 		fmt.Println(err.Error())
 	} else {
-		//update state
+		p.state.PyxisListSuccessful()
 	}
 
 	p.erxItemIdLinks = initERxItemIdLink()
@@ -149,7 +126,7 @@ func initProcess() *Process {
 	}
 
 	p.itemIDs = initItemIDs()
-	err, lr := p.itemIDs.Load(p.pathToData)
+	err, lr = p.itemIDs.Load(p.pathToData)
 	p.logger.Log(lr)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -166,6 +143,14 @@ func initProcess() *Process {
 
 func (p *Process) save() {
 	p.logger.LogInfo("Saving data...")
+
+	if p.state.PyxisListOkay() {
+		err, rl := p.FacilityPyxisList.Save(p.pathToData)
+		p.logger.Log(rl)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+	}
 
 	if p.state.ERxItemIdLinksOkay() {
 		err := p.saveERxItemIdLinks()

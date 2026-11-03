@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/PharmacyDoc2018/pyxis_event_tracker/database"
+	"github.com/PharmacyDoc2018/control_event_parser/database"
 )
 
 func getPyxisEvents(p *Process, params database.GetPyxisEventsForDeviceByDateRangeParams) ([]database.PyxisEventResponse, error) {

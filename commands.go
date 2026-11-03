@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/PharmacyDoc2018/pyxis_event_tracker/cli"
+	"github.com/PharmacyDoc2018/control_event_parser/cli"
 )
 
 func (p *Process) setupCommands() {
@@ -80,7 +80,7 @@ func (p *Process) setupCommands() {
 			}
 		}
 
-		err := p.addNewFacilityPyxis(pyxisName)
+		err := p.FacilityPyxisList.Add(pyxisName)
 		if err != nil {
 			return err
 		}
@@ -531,6 +531,51 @@ func (p *Process) setupCommands() {
 		}
 
 		return nil
+	})
+
+	//-------------------- Get EventAction Commands ------------------------//
+	p.cliConfig.AddCommand("get month events", func(args []cli.CommandArg) error {
+		p.logger.LogInfo("get month events command executed")
+
+		month := ""
+		year := ""
+
+		for _, arg := range args {
+			switch arg.Name {
+			case "month":
+				month = arg.Val
+
+			case "year":
+				year = arg.Val
+			}
+		}
+
+		if month == "" {
+			p.logger.LogError("Command Failed: month cannot be blank")
+			return fmt.Errorf("error. month cannot be blank")
+		}
+
+		if year == "" {
+			p.logger.LogError("Command Failed: year cannot be blank")
+			return fmt.Errorf("error. year cannot be blank")
+		}
+
+		monthInt, err := parseMonth(month)
+		if err != nil {
+			p.logger.LogError(fmt.Sprintf("Command Failed: %s", err.Error()))
+			return err
+		}
+
+		//Need parse year function
+
+		return nil
+
+	}, cli.CommandArg{
+		Name:     "month",
+		Required: true,
+	}, cli.CommandArg{
+		Name:     "year",
+		Required: true,
 	})
 
 	//-------------------- Control Event Trail Commands ------------------------//
