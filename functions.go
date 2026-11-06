@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 )
 
 func parseDate(dateString string) (time.Time, error) {
@@ -87,6 +88,42 @@ func parseMonth(monthString string) (int, error) {
 	}
 
 	return monthInt, nil
+}
+
+func parseYear(yearString string) (int, error) {
+	var year int
+	var err error
+	invalidFormatError := fmt.Errorf("error. %s is not a valid year format", yearString)
+
+	switch len(yearString) {
+	case 2:
+		yearRunes := []rune(yearString)
+		for _, r := range yearRunes {
+			if !unicode.IsNumber(r) {
+				return 0, invalidFormatError
+			}
+		}
+
+		nowYearRunes := []rune(time.Now().Format("2006"))
+		yearRunes = append(nowYearRunes[:2], yearRunes...)
+		yearString = string(yearRunes)
+
+		year, err = strconv.Atoi(yearString)
+		if err != nil {
+			return 0, err
+		}
+
+	case 4:
+		year, err = strconv.Atoi(yearString)
+		if err != nil {
+			return 0, err
+		}
+
+	default:
+		return 0, invalidFormatError
+	}
+
+	return year, nil
 }
 
 func timeToday() time.Time {

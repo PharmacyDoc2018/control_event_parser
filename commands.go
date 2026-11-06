@@ -555,18 +555,21 @@ func (p *Process) setupCommands() {
 			return fmt.Errorf("error. month cannot be blank")
 		}
 
-		if year == "" {
-			p.logger.LogError("Command Failed: year cannot be blank")
-			return fmt.Errorf("error. year cannot be blank")
-		}
-
 		monthInt, err := parseMonth(month)
 		if err != nil {
 			p.logger.LogError(fmt.Sprintf("Command Failed: %s", err.Error()))
 			return err
 		}
 
-		//Need parse year function
+		if year == "" {
+			year = time.Now().Format("2006")
+		}
+
+		yearInt, err := parseYear(year)
+		if err != nil {
+			p.logger.LogError(fmt.Sprintf("Command Failed: %s", err.Error()))
+			return err
+		}
 
 		return nil
 
@@ -575,7 +578,7 @@ func (p *Process) setupCommands() {
 		Required: true,
 	}, cli.CommandArg{
 		Name:     "year",
-		Required: true,
+		Required: false,
 	})
 
 	//-------------------- Control Event Trail Commands ------------------------//
